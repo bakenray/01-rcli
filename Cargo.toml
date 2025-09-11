@@ -2,7 +2,7 @@
 name = "template"
 version = "0.1.0"
 edition = "2021"
-
+license = "MIT OR Apache-2.0 OR Unicode-DFS-2016 OR MPL-2.0 OR BSD-2-Clause OR BSD-3-Clause OR ISC OR CC0-1.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
