@@ -17,7 +17,7 @@ jobs:
   build-rust:
     strategy:
       matrix:
-        platform: [ubuntu-latest]
+        platform: ["ubuntu:22.04"]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
