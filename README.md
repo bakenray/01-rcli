@@ -42,7 +42,7 @@ src/
 ├── main.rs              # bin target：只有 Opts::parse() + 一个 match，不写业务
 ├── lib.rs               # lib target：crate 的"公开门面"，只做 mod 声明 + pub use 再导出
 ├── cli/                 # 协议层：命令行长什么样
-│   ├── mod.rs           #   Opts / SubCommand 枚举 + 公共校验函数 verify_input_file
+│   ├── mod.rs           #   Opts / SubCommand 枚举 + 公共校验函数 verify_file
 │   ├── csv.rs           #   CsvOpts + OutputFormat（含 Display/FromStr 双向转换）
 │   ├── genpass.rs       #   GenPassOpts（纯默认值声明）
 │   └── base64.rs        #   Base64SubCommand + Base64Encode/DecodeOpts + Base64Format
@@ -118,7 +118,7 @@ pub use self::{csv::OutputFormat, base64::{Base64SubCommand, Base64Format}};
 
 crate 里同时存在 `cli::csv` 和 `process::csv_convert`、`cli::base64`（模块）和外部 crate `base64`。Rust 2018+ 允许 `use csv::...` 这种写法同时可能命中"本模块的 csv"或"外部 crate csv"，编译器会报歧义。**`self::` = 明确说"我要的是当前模块下的那个"**，`crate::` = 从 crate 根开始找，`super::` = 上一层模块。
 
-同理，[src/cli/csv.rs#L3](file:///d:/codes/01-rcli/src/cli/csv.rs#L3) 的 `use super::verify_input_file;` 是从父模块（`cli/mod.rs`）拿那个公共校验函数——**`verify_input_file` 只写了一次，csv 和 base64 两个子命令都在用**，这就是"参数校验属于协议层"的落点。
+同理，[src/cli/csv.rs#L3](file:///d:/codes/01-rcli/src/cli/csv.rs#L3) 的 `use super::verify_file;` 是从父模块（`cli/mod.rs`）拿那个公共校验函数——**`verify_file` 只写了一次，csv 和 base64 两个子命令都在用**，这就是"参数校验属于协议层"的落点。
 
 ---
 
@@ -127,7 +127,7 @@ crate 里同时存在 `cli::csv` 和 `process::csv_convert`、`cli::base64`（�
 以 `cargo run -- base64 encode -i Cargo.toml -f url-safe` 为例：
 
 1. **`Opts::parse()`**（[src/main.rs#L13](file:///d:/codes/01-rcli/src/main.rs#L13)）— `#[derive(Parser)]` 生成的代码读 `std::env::args`，按 `Opts`/`SubCommand`/`Base64SubCommand` 的字段和属性匹配。
-2. **`value_parser = verify_input_file`**（[src/cli/base64.rs#L15-L16](file:///d:/codes/01-rcli/src/cli/base64.rs#L15-L16)）— 在字符串进入结构体之前做一次"存在性检查"，顺便把 `"-"` 当合法值放行（原理见 §5 第 5 条）。
+2. **`value_parser = verify_file`**（[src/cli/base64.rs#L15-L16](file:///d:/codes/01-rcli/src/cli/base64.rs#L15-L16)）— 在字符串进入结构体之前做一次"存在性检查"，顺便把 `"-"` 当合法值放行（原理见 §5 第 5 条）。
 3. **`-f url-safe` → `Base64Format::UrlSafe`** — 因为 `Base64Format` derive 了 `ValueEnum`，clap 自动生成 kebab-case 取值表；类型转换在**解析阶段**完成，业务层拿到的一定是合法 enum。
 4. **`main` 的 match**（[src/main.rs#L34-L41](file:///d:/codes/01-rcli/src/main.rs#L34-L41)）— 嵌套 match：外层挑 `SubCommand::Base64`，内层挑 `Base64SubCommand::Encode`。
 5. **`process_encode`**（[src/process/b64.rs#L6-L23](file:///d:/codes/01-rcli/src/process/b64.rs#L6-L23)）— `get_reader(input)?` 拿到一个 `Box<dyn Read>` → `read_to_end` 读进 `Vec<u8>` → match format 选引擎 → `println!`。
@@ -278,7 +278,7 @@ fn get_reader(input: &str) -> Result<Box<dyn Read>> {
 2. **enum 就是穷尽的状态机**：`SubCommand` / `OutputFormat` / `Base64Format` 都不带逻辑，逻辑全在 `match`。新增一个 variant，编译器会替你列出所有需要改的地方。
 3. **`?` 不只是提前返回**：它调用 `From::from` 把对方错误（`io::Error`、`DecodeError`、`Utf8Error`）转成当前返回类型的错误（`anyhow::Error`）。所以 `reader.read_to_end(&mut buf)?` 和 `STANDARD.decode(&buf)?` 能混在同一个函数里——**`anyhow` 用"类型擦除"换来了跨错误类型的简洁**。
 4. **`anyhow` vs `thiserror`**：`anyhow` 给**应用**（只要把错误报给人看），`thiserror` 给**库**（调用方需要 `match` 具体错误码）。你是 CLI，所以全项目 `anyhow` 是对的；将来把 `process_*` 抽给别人当库用时再换。
-5. **`-` 代表 stdin 是 Unix 惯例**（`cat -`、`curl`、`git`）。`verify_input_file` 特意放行 `"-"`（[src/cli/mod.rs#L31](file:///d:/codes/01-rcli/src/cli/mod.rs#L30-L36)），`get_reader` 再把 `"-"` 翻译成 `stdin`，两处配合才让 `echo hi | rcli base64 encode` 成立。
+5. **`-` 代表 stdin 是 Unix 惯例**（`cat -`、`curl`、`git`）。`verify_file` 特意放行 `"-"`（[src/cli/mod.rs#L31](file:///d:/codes/01-rcli/src/cli/mod.rs#L30-L36)），`get_reader` 再把 `"-"` 翻译成 `stdin`，两处配合才让 `echo hi | rcli base64 encode` 成立。
 6. **字节 vs 文本的边界意识**：`gen_pass` 全程 `Vec<u8>` 最后一步 `from_utf8`；`b64` encode 收字节、decode 吐文本。**什么时候边界断裂，什么时候就报错**——这是 Rust 处理编码问题的基本姿势。
 7. **clap derive 是"声明式 + 值解析"**：`#[arg(short, long, value_parser = ..., default_value = ...)]` 让"字符串 → 领域类型"的转换发生在进入结构体之前。业务函数因此**永远不用再做合法性判断**（对比 Python 里函数开头那一堆 `if args.x is None`）。
 8. **测试分三层，写在离代码最近的地方**：`#[cfg(test)]` 单元测试贴在同一文件（`cli/mod.rs`、`process/b64.rs`）；`assets/` 是给人手动试的数据，`fixtures/` 是给测试用的数据；跨进程的端到端验证留给 `tests/` + `assert_cmd`（目前还没建）。
@@ -371,7 +371,7 @@ attempt to subtract with overflow        (exit code 101)
 - `struct Player` 是 never-constructed 死代码（每次构建都刷 warning）。删掉，或留着当下一课（"用 `Deserialize` 直接读成强类型 + `serde` 属性"）的锚点，那就 `#[allow(dead_code)]` + 一行注释说明意图。
 - [src/main.rs#L25](file:///d:/codes/01-rcli/src/main.rs#L25) 的 `println!("Generate passwor: {:?}", gp_opts)` 是调试残留，且**直接破坏 `pass=$(rcli genpass)` 这类管道用法**（它打在 stdout，结果被污染，见 §6 实测），`passwor` 还少了个 `d`。这类调试打印要么删掉，要么用 `eprintln!`。
 - [src/process/csv_convert.rs#L23](file:///d:/codes/01-rcli/src/process/csv_convert.rs#L23) 的 `Vec::with_capacity(128)` 是魔法数：它只是预分配提示，行数超过 128 也照样能跑，但读代码的人会以为是上限。
-- `verify_input_file` 的错误信息是固定的 `"File does not exist"`，不带文件名，用户不知道是哪个参数错了（建议：`format!("{filename} does not exist")`，注意返回类型是 `&'static str` 时没法带动态内容，需要换成 `String`/`anyhow`）。
+- `verify_file` 的错误信息是固定的 `"File does not exist"`，不带文件名，用户不知道是哪个参数错了（建议：`format!("{filename} does not exist")`，注意返回类型是 `&'static str` 时没法带动态内容，需要换成 `String`/`anyhow`）。
 - 模块路径有三种写法并存：`cli/` 内用 `super::`、`process/` 用 `crate::cli::OutputFormat`、`main.rs` 用 `rcli::Base64Format`。**每种单独看都合理**（见 §2.1 第 3 点），但没有成文约定，读代码时会误以为有什么特殊含义。建议定一条：**crate 内部一律 `crate::`，只有 bin 和外部用户走 `lib.rs` 门面**（`cli/mod.rs` 那行注释就是这条约定的雏形）。
 - 数据目录三分天下：`assets/`（手工试）、`fixtures/`（测试用，本次为 `test_process_decode` 新建）、`texitures/`（**空目录 + 拼写错误**）。删掉 `texitures/`，或把它正名为 `textures/` 并统一成一处。
 - `lib.rs` 的 `pub use process::*;` 是 glob 再导出：省事，但**公开 API 面看不见**，将来加同名函数会静默冲突。
