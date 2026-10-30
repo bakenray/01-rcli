@@ -2,6 +2,7 @@ mod csv;
 mod genpass;
 mod base64;
 mod text;
+mod http;
 
 use std::{path::Path};
 use clap::Parser;
@@ -10,7 +11,8 @@ use std::path::PathBuf;
 pub use self::{
     csv::CsvOpts,
     genpass::GenPassOpts,
-    text::{TextSubCommand, TextSignFormat}
+    http::HttpSubCommand,
+    text::{TextSubCommand, TextSignFormat},
 };
 
 //使用self 是因为crate中也有同名的csv，为了避免歧义，使用selft前缀
@@ -36,6 +38,9 @@ pub enum SubCommand {
 
     #[command(subcommand)]
     Text(TextSubCommand),
+
+    #[command(subcommand)]
+    Http(HttpSubCommand),
 }
 
 fn verify_file(filename: &str) -> Result<String, &'static str> {

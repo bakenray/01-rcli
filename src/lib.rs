@@ -3,12 +3,13 @@ mod process;
 mod utils;
 
 pub use cli::{
-    Opts, 
     SubCommand, 
-    Base64Format, 
     Base64SubCommand,
     TextSubCommand,
-    TextSignFormat
+    HttpSubCommand,
+    Opts, 
+    Base64Format, 
+    TextSignFormat,
 };
 pub use process::*;
 pub use utils::*;
