@@ -1,5 +1,6 @@
 use clap::{Parser, ValueEnum};
 use super::verify_file; //从mod中引入verify_input_file
+use crate::CmdExector;
 
 #[derive(Debug, Parser)]
 pub enum Base64SubCommand {
@@ -32,4 +33,27 @@ pub struct Base64DecodeOpts {
 pub enum Base64Format {
     Standard,
     UrlSafe,
+}
+
+impl CmdExector for Base64EncodeOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let ret = crate::process_encode(&self.input, self.format)?;
+        println!("{}", ret);
+        Ok(())    
+    }
+}
+impl CmdExector for Base64DecodeOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let ret = crate::process_decode(&self.input, self.format)?;
+        println!("{:?}", ret);
+        Ok(())    
+    }
+}
+impl CmdExector for Base64SubCommand {
+    async fn execute(self) -> anyhow::Result<()> {
+        match self {
+            Base64SubCommand::Encode(opts) => opts.execute().await,
+            Base64SubCommand::Decode(opts) => opts.execute().await
+        }
+    }
 }

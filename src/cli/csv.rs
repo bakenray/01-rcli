@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::{fmt, str::FromStr};
 use super::verify_file; //从mod中引入verify_input_file
+use crate::CmdExector;
 
 #[derive(Debug, Parser)]
 pub struct CsvOpts {
@@ -52,6 +53,17 @@ impl FromStr for OutputFormat {
 impl fmt::Display for OutputFormat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Into::<&str>::into(*self))
+    }
+}
+
+impl CmdExector for CsvOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let output = if let Some(output) = self.output {
+               output
+           } else {
+               format!("output.{}", self.format)
+           };
+        crate::process_csv(&self.input, output, self.format)
     }
 }
 
