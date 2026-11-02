@@ -72,6 +72,9 @@ ignore = [
 allow = [
   "MIT",
   "Apache-2.0",
+  # unicode-ident 1.0.27 起许可证变成 "(MIT OR Apache-2.0) AND Unicode-3.0"，
+  # 下面的 Unicode-DFS-2016 是它的旧版本，两条都得留着
+  "Unicode-3.0",
   "Unicode-DFS-2016",
   "MPL-2.0",
   "BSD-2-Clause",

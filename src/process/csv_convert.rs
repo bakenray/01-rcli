@@ -1,9 +1,8 @@
-
+use crate::cli::OutputFormat;
 use anyhow::Result;
 use csv::Reader;
 use serde_json::{Map, Value};
 use std::fs;
-use crate::cli::OutputFormat;
 
 pub fn process_csv(input: &str, output: String, format: OutputFormat) -> Result<()> {
     let mut reader = Reader::from_path(input)?;
@@ -19,7 +18,7 @@ pub fn process_csv(input: &str, output: String, format: OutputFormat) -> Result<
             .collect::<Map<String, Value>>();
         ret.push(Value::Object(json_value));
     }
-    
+
     let content = match format {
         OutputFormat::Json => serde_json::to_string_pretty(&ret)?,
         OutputFormat::Yaml => serde_yaml::to_string(&ret)?,
@@ -30,6 +29,6 @@ pub fn process_csv(input: &str, output: String, format: OutputFormat) -> Result<
     };
 
     fs::write(output, content)?;
-    
+
     Ok(())
 }

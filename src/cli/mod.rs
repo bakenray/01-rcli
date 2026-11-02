@@ -1,24 +1,27 @@
+mod base64;
 mod csv;
 mod genpass;
-mod base64;
-mod text;
 mod http;
+mod text;
 
-use std::{path::Path};
+use crate::CmdExecutor;
 use clap::Parser;
 use enum_dispatch::enum_dispatch;
+use std::path::Path;
 use std::path::PathBuf;
-use crate::CmdExector;
 
 pub use self::{
     csv::CsvOpts,
     genpass::GenPassOpts,
     http::HttpSubCommand,
-    text::{TextSubCommand, TextSignFormat},
+    text::{TextSignFormat, TextSubCommand},
 };
 
 //使用self 是因为crate中也有同名的csv，为了避免歧义，使用selft前缀
-pub use self::{csv::OutputFormat, base64::{ Base64SubCommand, Base64Format }};
+pub use self::{
+    base64::{Base64Format, Base64SubCommand},
+    csv::OutputFormat,
+};
 
 #[derive(Debug, Parser)]
 #[command(name = "rcli", version, author, about, long_about = None)]
@@ -27,7 +30,7 @@ pub struct Opts {
     pub cmd: SubCommand,
 }
 
-#[enum_dispatch(CmdExector)]
+#[enum_dispatch(CmdExecutor)]
 #[derive(Debug, Parser)]
 pub enum SubCommand {
     #[command(name = "csv", about = "Show CSV, or convert csv to other formats")]
@@ -36,29 +39,27 @@ pub enum SubCommand {
     #[command(name = "genpass", about = "Generate a random password")]
     GenPass(GenPassOpts),
 
-    #[command(subcommand, about="Base64 encode/decode")]
+    #[command(subcommand, about = "Base64 encode/decode")]
     Base64(Base64SubCommand),
 
-    #[command(subcommand, about="Text sign/verify")]
+    #[command(subcommand, about = "Text sign/verify")]
     Text(TextSubCommand),
 
-    #[command(subcommand, about="HTTP server")]
+    #[command(subcommand, about = "HTTP server")]
     Http(HttpSubCommand),
 }
 
-
 fn verify_file(filename: &str) -> Result<String, &'static str> {
-  if filename == "-" || Path::new(filename).exists() {
-      Ok(filename.into())
-  } else {
-      Err("File does not exist")
-  }
+    if filename == "-" || Path::new(filename).exists() {
+        Ok(filename.into())
+    } else {
+        Err("File does not exist")
+    }
 }
-
 
 fn verify_path(path: &str) -> Result<PathBuf, &'static str> {
     let p = Path::new(path);
-    if p.exists()  && p.is_dir() {
+    if p.exists() && p.is_dir() {
         Ok(path.into())
     } else {
         Err("Path does not exist or is not a directory")

@@ -1,7 +1,7 @@
+use super::verify_file; //从mod中引入verify_input_file
+use crate::CmdExecutor;
 use clap::Parser;
 use std::{fmt, str::FromStr};
-use super::verify_file; //从mod中引入verify_input_file
-use crate::CmdExector;
 
 #[derive(Debug, Parser)]
 pub struct CsvOpts {
@@ -45,7 +45,7 @@ impl FromStr for OutputFormat {
             "json" => Ok(OutputFormat::Json),
             "yaml" => Ok(OutputFormat::Yaml),
             "toml" => Ok(OutputFormat::Toml),
-            _ => Err(anyhow::anyhow!("Invalid format"))
+            _ => Err(anyhow::anyhow!("Invalid format")),
         }
     }
 }
@@ -56,13 +56,13 @@ impl fmt::Display for OutputFormat {
     }
 }
 
-impl CmdExector for CsvOpts {
+impl CmdExecutor for CsvOpts {
     async fn execute(self) -> anyhow::Result<()> {
         let output = if let Some(output) = self.output {
-               output
-           } else {
-               format!("output.{}", self.format)
-           };
+            output
+        } else {
+            format!("output.{}", self.format)
+        };
         crate::process_csv(&self.input, output, self.format)
     }
 }

@@ -1,9 +1,9 @@
+use super::verify_file; //从mod中引入verify_input_file
+use crate::CmdExecutor;
 use clap::{Parser, ValueEnum};
 use enum_dispatch::enum_dispatch;
-use super::verify_file; //从mod中引入verify_input_file
-use crate::CmdExector;
 
-#[enum_dispatch(CmdExector)]
+#[enum_dispatch(CmdExecutor)]
 #[derive(Debug, Parser)]
 pub enum Base64SubCommand {
     #[command(name = "encode", about = "Encode input to a base64 string")]
@@ -37,17 +37,20 @@ pub enum Base64Format {
     UrlSafe,
 }
 
-impl CmdExector for Base64EncodeOpts {
+impl CmdExecutor for Base64EncodeOpts {
     async fn execute(self) -> anyhow::Result<()> {
         let ret = crate::process_encode(&self.input, self.format)?;
         println!("{}", ret);
-        Ok(())    
+        Ok(())
     }
 }
-impl CmdExector for Base64DecodeOpts {
+impl CmdExecutor for Base64DecodeOpts {
     async fn execute(self) -> anyhow::Result<()> {
         let ret = crate::process_decode(&self.input, self.format)?;
-        println!("{:?}", ret);
-        Ok(())    
+        // 解出来的是字节：可能是文本，也可能是图片之类的二进制。
+        // 这里显式走 from_utf8，“base64 解得动”并不等于“内容是人类可读文本”。
+        let text = String::from_utf8(ret)?;
+        println!("{text}");
+        Ok(())
     }
 }

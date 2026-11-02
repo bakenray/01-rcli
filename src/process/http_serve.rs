@@ -1,14 +1,14 @@
-use std::{io, net::SocketAddr, path::PathBuf, sync::Arc};
 use anyhow::Result;
 use axum::{
-    Router,
     extract::{Path, State},
-    http::{StatusCode, header},
+    http::{header, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
+    Router,
 };
-use tracing::{info, warn};
+use std::{io, net::SocketAddr, path::PathBuf, sync::Arc};
 use tower_http::services::ServeDir;
+use tracing::{info, warn};
 
 #[derive(Debug)]
 struct HttpServeState {
@@ -16,8 +16,8 @@ struct HttpServeState {
 }
 
 pub async fn process_http_serve(path: PathBuf, port: u16) -> Result<()> {
-    let addr = SocketAddr::from(([0,0,0,0], port));
-    info!("Serving {:?} on prot {}", path, port);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    info!("Serving {:?} on port {}", path, port);
 
     let state = HttpServeState { path: path.clone() };
 
@@ -32,7 +32,7 @@ pub async fn process_http_serve(path: PathBuf, port: u16) -> Result<()> {
         .route("/{*path}", get(file_handler))
         .nest_service("/tower", dir_service)
         .with_state(Arc::new(state));
-    
+
     let listener = tokio::net::TcpListener::bind(addr).await?;
 
     axum::serve(listener, router).await?;
@@ -40,15 +40,16 @@ pub async fn process_http_serve(path: PathBuf, port: u16) -> Result<()> {
 }
 
 async fn file_handler(
-    State(state): State<Arc<HttpServeState>>, 
+    State(state): State<Arc<HttpServeState>>,
     Path(path): Path<String>,
 ) -> Response {
     let p = std::path::Path::new(&state.path).join(&path);
     if !p.exists() {
         return (
-            StatusCode::NOT_FOUND, 
-            format!("File {} not found: ", p.display())
-        ).into_response();
+            StatusCode::NOT_FOUND,
+            format!("File {} not found", p.display()),
+        )
+            .into_response();
     }
 
     // 请求的是目录：生成 HTML 目录索引
@@ -60,7 +61,8 @@ async fn file_handler(
                     StatusCode::OK,
                     [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
                     html,
-                ).into_response()
+                )
+                    .into_response()
             }
             Err(e) => {
                 warn!("Error reading dir {:?}: {:?}", p, e);
@@ -78,7 +80,7 @@ async fn file_handler(
             warn!("Error reading file: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
         }
-    } 
+    }
 }
 
 /// 只遍历目录的第一级内容，拼成一个简单的 HTML 目录索引页。
@@ -104,7 +106,10 @@ async fn list_dir(dir: &std::path::Path, request_path: &str) -> io::Result<Strin
     }
 
     let mut html = String::from("<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n");
-    html.push_str(&format!("<title>Index of {}</title>\n</head>\n<body>\n", escape_html(&base)));
+    html.push_str(&format!(
+        "<title>Index of {}</title>\n</head>\n<body>\n",
+        escape_html(&base)
+    ));
     html.push_str(&format!("<h1>Index of {}</h1>\n<ul>\n", escape_html(&base)));
 
     for (name, is_dir) in &entries {
@@ -113,7 +118,11 @@ async fn list_dir(dir: &std::path::Path, request_path: &str) -> io::Result<Strin
         } else {
             format!("{}{}", base, encode_url_segment(name))
         };
-        let text = if *is_dir { format!("{name}/") } else { name.clone() };
+        let text = if *is_dir {
+            format!("{name}/")
+        } else {
+            name.clone()
+        };
         html.push_str(&format!(
             "<li><a href=\"{}\">{}</a></li>\n",
             escape_html(&url),
@@ -159,7 +168,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_file_handler() {
-        let state = Arc::new(HttpServeState{path: PathBuf::from(".")});
+        let state = Arc::new(HttpServeState {
+            path: PathBuf::from("."),
+        });
         let resp = file_handler(State(state), Path("Cargo.toml".to_string())).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let content = body_string(resp).await;
@@ -168,14 +179,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_file_handler_not_found() {
-        let state = Arc::new(HttpServeState{path: PathBuf::from(".")});
+        let state = Arc::new(HttpServeState {
+            path: PathBuf::from("."),
+        });
         let resp = file_handler(State(state), Path("no-such-file.txt".to_string())).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
     async fn test_file_handler_dir_index() {
-        let state = Arc::new(HttpServeState{path: PathBuf::from(".")});
+        let state = Arc::new(HttpServeState {
+            path: PathBuf::from("."),
+        });
         let resp = file_handler(State(state), Path("src".to_string())).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let content = body_string(resp).await;
