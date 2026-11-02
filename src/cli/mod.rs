@@ -6,6 +6,7 @@ mod http;
 
 use std::{path::Path};
 use clap::Parser;
+use enum_dispatch::enum_dispatch;
 use std::path::PathBuf;
 use crate::CmdExector;
 
@@ -26,6 +27,7 @@ pub struct Opts {
     pub cmd: SubCommand,
 }
 
+#[enum_dispatch(CmdExector)]
 #[derive(Debug, Parser)]
 pub enum SubCommand {
     #[command(name = "csv", about = "Show CSV, or convert csv to other formats")]
@@ -42,18 +44,6 @@ pub enum SubCommand {
 
     #[command(subcommand, about="HTTP server")]
     Http(HttpSubCommand),
-}
-
-impl CmdExector for SubCommand {
-    async fn execute(self) -> anyhow::Result<()> {
-        match self {
-            SubCommand::Csv(opts) => opts.execute().await,
-            SubCommand::GenPass(opts) => opts.execute().await,
-            SubCommand::Base64(cmd) => cmd.execute().await,
-            SubCommand::Text(cmd) => cmd.execute().await,  
-            SubCommand::Http(cmd) => cmd.execute().await,
-        }
-    }
 }
 
 
